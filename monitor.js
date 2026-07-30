@@ -145,6 +145,65 @@ async function main() {
     if (!data) { console.log('❌ 读取失败'); return; }
     console.log('✅ 读取成功，成员：' + Object.keys(data).length);
 
+
+    // ====== 调试：强制触发所有模板（测试后删除） ======
+    var testName = '杨辰汐';
+    var testTemp = 38.5;
+    var testLv = 'mid';
+    
+    // 1. 启动模板
+    msgs.push({
+        tid: WX_TEMPLATE_START,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: testTemp.toFixed(1) + '°C（🟠中度发热）', color: '#FF4444' },
+            keyword2: { value: '🔔 检测到发热！监测已启动\n请测量体温，观察症状\n测量时间：2026年7月31日\n提醒间隔：每45分钟', color: '#333333' },
+            keyword3: { value: nowStr, color: '#999999' },
+            remark: { value: '洋gg软件工作室', color: '#666666' }
+        }
+    });
+    
+    // 2. 体温提醒模板
+    msgs.push({
+        tid: WX_TEMPLATE_TEMP,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: testTemp.toFixed(1) + '°C（🟠中度发热）', color: '#FF4444' },
+            keyword2: { value: '请测量体温，观察症状\n上次测量：5分钟前\n提醒间隔：每45分钟', color: '#333333' },
+            keyword3: { value: nowStr, color: '#999999' },
+            remark: { value: '请及时测量并记录体温', color: '#666666' }
+        }
+    });
+    
+    // 3. 用药提醒模板
+    msgs.push({
+        tid: WX_TEMPLATE_MED,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: '布洛芬颗粒', color: '#FF4444' },
+            keyword2: { value: '一包', color: '#333333' },
+            keyword3: { value: '每6小时一次', color: '#333333' },
+            keyword4: { value: '上次用药：2026年7月31日', color: '#999999' },
+            remark: { value: '请按时服药', color: '#666666' }
+        }
+    });
+    
+    // 4. 康复模板
+    msgs.push({
+        tid: WX_TEMPLATE_RECOVERY,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: testName, color: '#333333' },
+            keyword2: { value: '2026年7月28日 至今（3天）', color: '#333333' },
+            keyword3: { value: '✅ 已连续3天体温正常，监测已自动关闭', color: '#27AE60' },
+            remark: { value: '如有不适请重新记录体温', color: '#666666' }
+        }
+    });
+    
+    changed = false; // 不保存到OSS
+    // ====== 调试结束 ======
+    
+    
     var now = new Date();
     var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
     var msgs = [];
