@@ -147,9 +147,81 @@ async function main() {
 
     var now = new Date();
     var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
-    var msgs = [];
+        var msgs = [];
     var changed = false;
     var activeCount = 0;
+
+    // ====== 测试所有模板（收到后删除） ======
+    var testName = '杨辰汐';
+    
+    // 1. 启动模板
+    msgs.push({
+        tid: WX_TEMPLATE_START,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: testName, color: '#333333' },
+            keyword2: { value: '38.5°C（🟠中度发热）', color: '#FF4444' },
+            keyword3: { value: '2026年7月31日 18:30', color: '#999999' },
+            keyword4: { value: '共2次发烧记录', color: '#333333' },
+            keyword5: { value: '🔔 监测已启动，间隔每45分钟', color: '#FF6600' },
+            remark: { value: '洋gg软件工作室', color: '#666666' }
+        }
+    });
+    
+    // 2. 体温提醒模板
+    msgs.push({
+        tid: WX_TEMPLATE_TEMP,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: testName, color: '#333333' },
+            keyword2: { value: '38.5°C（🟠中度发热）', color: '#FF4444' },
+            keyword3: { value: '2026年7月31日 18:30', color: '#999999' },
+            keyword4: { value: '15分钟前', color: '#333333' },
+            keyword5: { value: '请测量体温，观察症状 | 间隔每45分钟', color: '#FF6600' },
+            remark: { value: '请及时测量并记录体温', color: '#666666' }
+        }
+    });
+    
+    // 3. 用药提醒模板
+    msgs.push({
+        tid: WX_TEMPLATE_MED,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: testName, color: '#333333' },
+            keyword2: { value: '布洛芬颗粒', color: '#FF4444' },
+            keyword3: { value: '每6小时一次（一包）', color: '#333333' },
+            keyword4: { value: '2026年7月31日 12:00', color: '#999999' },
+            keyword5: { value: '6小时前', color: '#333333' },
+            remark: { value: '请按时服药，注意用药安全', color: '#666666' }
+        }
+    });
+    
+    // 4. 康复模板
+    msgs.push({
+        tid: WX_TEMPLATE_RECOVERY,
+        data: {
+            first: { value: '👤 ' + testName, color: '#173177' },
+            keyword1: { value: testName, color: '#333333' },
+            keyword2: { value: '2026年7月28日 至 2026年7月31日（3天）', color: '#333333' },
+            keyword3: { value: '✅ 已连续3天体温正常', color: '#27AE60' },
+            keyword4: { value: '监测已自动关闭，如有不适请重新记录体温', color: '#666666' },
+            remark: { value: '洋gg软件工作室', color: '#666666' }
+        }
+    });
+    
+    // 直接发送，不走正常逻辑
+    if (msgs.length > 0) {
+        console.log('发送 ' + msgs.length + ' 条测试消息');
+        var testToken = await getToken();
+        if (testToken) {
+            for (var tk = 0; tk < msgs.length; tk++) {
+                await sendWx(testToken, msgs[tk].tid, msgs[tk].data);
+            }
+        }
+    }
+    console.log('=== 测试完成 ===');
+    return;
+    // ====== 测试结束 ======
 
     var names = Object.keys(data);
     for (var i = 0; i < names.length; i++) {
