@@ -1,7 +1,7 @@
 const https = require('https');
 const crypto = require('crypto');
 
-// 从环境变量读取（安全，不暴露在代码中）
+
 const WX_APPID = process.env.WX_APPID;
 const WX_SECRET = process.env.WX_SECRET;
 const WX_OPENID = process.env.WX_OPENID;
@@ -127,7 +127,11 @@ async function main() {
     var data = await ossGet('/baby_temp_data.json');
     if (!data) { console.log('❌ 读取数据失败'); return; }
     console.log('✅ 读取数据成功，成员数：' + Object.keys(data).length);
-
+ // === 测试：强制重置（收到消息后删除） ===
+    if (data['杨辰汐']) data['杨辰汐'].lastTempRemind = '2026-07-29T00:00:00.000Z';
+    if (data['杨洋']) data['杨洋'].lastTempRemind = '2026-07-29T00:00:00.000Z';
+    // === 测试结束 ===
+    
     var now = new Date();
     var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
     var msgs = [];
