@@ -145,7 +145,9 @@ async function main() {
     var data = await ossGet('/baby_temp_data.json');
     if (!data) { console.log('❌ 读取数据失败'); return; }
     console.log('✅ 读取成功，成员数：' + Object.keys(data).length);
-
+  if (data['杨辰汐']) data['杨辰汐'].lastTempRemind = '2026-07-29T00:00:00.000Z';
+    if (data['杨洋']) data['杨洋'].lastTempRemind = '2026-07-29T00:00:00.000Z';
+    
     var now = new Date();
     var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
     var msgs = [];
