@@ -123,11 +123,14 @@ var remindText = { high: '请立即测量体温！持续高热请就医！', mid
 
 function fmtTime(iso) {
     var d = new Date(iso);
+    // 加8小时转为北京时间
+    d.setHours(d.getHours() + 8);
     var p = function(v) { return String(v).padStart(2, '0'); };
     return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 '+p(d.getHours())+':'+p(d.getMinutes());
 }
 
 function ago(now, past) {
+    // now和past都是UTC时间，差值不变，不用改
     var diff = now - past;
     var d = Math.floor(diff / 86400000);
     var h = Math.floor((diff % 86400000) / 3600000);
