@@ -146,6 +146,14 @@ async function main() {
     console.log('✅ 读取成功，成员：' + Object.keys(data).length);
 
 
+    
+    var now = new Date();
+    var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+    var msgs = [];
+    var changed = false;
+    var activeCount = 0;
+
+
     // ====== 调试：强制触发所有模板（测试后删除） ======
     var testName = '杨辰汐';
     var testTemp = 38.5;
@@ -204,12 +212,6 @@ async function main() {
     // ====== 调试结束 ======
     
     
-    var now = new Date();
-    var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
-    var msgs = [];
-    var changed = false;
-    var activeCount = 0;
-
     var names = Object.keys(data);
     for (var i = 0; i < names.length; i++) {
         var name = names[i];
