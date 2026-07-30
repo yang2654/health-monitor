@@ -145,73 +145,12 @@ async function main() {
     if (!data) { console.log('❌ 读取失败'); return; }
     console.log('✅ 读取成功，成员：' + Object.keys(data).length);
 
-
-    
     var now = new Date();
     var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
     var msgs = [];
     var changed = false;
     var activeCount = 0;
 
-
-    // ====== 调试：强制触发所有模板（测试后删除） ======
-    var testName = '杨辰汐';
-    var testTemp = 38.5;
-    var testLv = 'mid';
-    
-    // 1. 启动模板
-    msgs.push({
-        tid: WX_TEMPLATE_START,
-        data: {
-            first: { value: '👤 ' + testName, color: '#173177' },
-            keyword1: { value: testTemp.toFixed(1) + '°C（🟠中度发热）', color: '#FF4444' },
-            keyword2: { value: '🔔 检测到发热！监测已启动\n请测量体温，观察症状\n测量时间：2026年7月31日\n提醒间隔：每45分钟', color: '#333333' },
-            keyword3: { value: nowStr, color: '#999999' },
-            remark: { value: '洋gg软件工作室', color: '#666666' }
-        }
-    });
-    
-    // 2. 体温提醒模板
-    msgs.push({
-        tid: WX_TEMPLATE_TEMP,
-        data: {
-            first: { value: '👤 ' + testName, color: '#173177' },
-            keyword1: { value: testTemp.toFixed(1) + '°C（🟠中度发热）', color: '#FF4444' },
-            keyword2: { value: '请测量体温，观察症状\n上次测量：5分钟前\n提醒间隔：每45分钟', color: '#333333' },
-            keyword3: { value: nowStr, color: '#999999' },
-            remark: { value: '请及时测量并记录体温', color: '#666666' }
-        }
-    });
-    
-    // 3. 用药提醒模板
-    msgs.push({
-        tid: WX_TEMPLATE_MED,
-        data: {
-            first: { value: '👤 ' + testName, color: '#173177' },
-            keyword1: { value: '布洛芬颗粒', color: '#FF4444' },
-            keyword2: { value: '一包', color: '#333333' },
-            keyword3: { value: '每6小时一次', color: '#333333' },
-            keyword4: { value: '上次用药：2026年7月31日', color: '#999999' },
-            remark: { value: '请按时服药', color: '#666666' }
-        }
-    });
-    
-    // 4. 康复模板
-    msgs.push({
-        tid: WX_TEMPLATE_RECOVERY,
-        data: {
-            first: { value: '👤 ' + testName, color: '#173177' },
-            keyword1: { value: testName, color: '#333333' },
-            keyword2: { value: '2026年7月28日 至今（3天）', color: '#333333' },
-            keyword3: { value: '✅ 已连续3天体温正常，监测已自动关闭', color: '#27AE60' },
-            remark: { value: '如有不适请重新记录体温', color: '#666666' }
-        }
-    });
-    
-    changed = false; // 不保存到OSS
-    // ====== 调试结束 ======
-    
-    
     var names = Object.keys(data);
     for (var i = 0; i < names.length; i++) {
         var name = names[i];
@@ -231,7 +170,7 @@ async function main() {
             return new Date(r.time) >= new Date(now - 3*86400000) && r.temperature >= FEVER_LINE;
         });
 
-        // ===== 启动监测（用启动模板）=====
+        // ===== 启动监测 =====
         if (d.monitorStatus === 'inactive' && recentFever && !d.feverNotified) {
             d.monitorStatus = 'active';
             d.lastFeverDate = now.toISOString().split('T')[0];
@@ -240,13 +179,16 @@ async function main() {
             changed = true;
             var last = temps[temps.length-1];
             var lv = getLevel(last.temperature);
+            var feverRecords = temps.filter(function(r) { return r.temperature >= FEVER_LINE; }).length;
             msgs.push({
                 tid: WX_TEMPLATE_START,
                 data: {
                     first: { value: '👤 ' + name, color: '#173177' },
-                    keyword1: { value: last.temperature.toFixed(1) + '°C（' + levelText[lv] + '）', color: '#FF4444' },
-                    keyword2: { value: '🔔 检测到发热！\n' + remindText[lv] + '\n测量时间：' + fmtTime(last.time) + '\n提醒间隔：每' + TEMP_INTERVALS[lv] + '分钟', color: '#333333' },
-                    keyword3: { value: nowStr, color: '#999999' },
+                    keyword1: { value: name, color: '#333333' },
+                    keyword2: { value: last.temperature.toFixed(1) + '°C（' + levelText[lv] + '）', color: '#FF4444' },
+                    keyword3: { value: fmtTime(last.time), color: '#999999' },
+                    keyword4: { value: '共' + feverRecords + '次发烧记录', color: '#333333' },
+                    keyword5: { value: '🔔 监测已启动，间隔每' + TEMP_INTERVALS[lv] + '分钟', color: '#FF6600' },
                     remark: { value: '洋gg软件工作室', color: '#666666' }
                 }
             });
@@ -268,16 +210,17 @@ async function main() {
                     data: {
                         first: { value: '👤 ' + name, color: '#173177' },
                         keyword1: { value: name, color: '#333333' },
-                        keyword2: { value: new Date(d.lastFeverDate).toLocaleDateString('zh-CN') + ' 至今（' + days + '天）', color: '#333333' },
-                        keyword3: { value: '✅ 已连续' + days + '天体温正常，监测已自动关闭', color: '#27AE60' },
-                        remark: { value: '如有不适请重新记录体温', color: '#666666' }
+                        keyword2: { value: new Date(d.lastFeverDate).toLocaleDateString('zh-CN') + ' 至 ' + now.toLocaleDateString('zh-CN') + '（' + days + '天）', color: '#333333' },
+                        keyword3: { value: '✅ 已连续' + days + '天体温正常', color: '#27AE60' },
+                        keyword4: { value: '监测已自动关闭，如有不适请重新记录体温', color: '#666666' },
+                        remark: { value: '洋gg软件工作室', color: '#666666' }
                     }
                 });
                 console.log(name + '：康复');
             }
         }
 
-        // ===== 体温提醒（用体温提醒模板）=====
+        // ===== 体温提醒 =====
         if (d.monitorStatus === 'active') {
             activeCount++;
             var lr = d.lastTempRemind ? new Date(d.lastTempRemind) : null;
@@ -288,13 +231,16 @@ async function main() {
                 if (!lr || (now - lr) > iv) {
                     d.lastTempRemind = now.toISOString();
                     changed = true;
+                    var minutesAgo = Math.floor((now - new Date(last.time)) / 60000);
                     msgs.push({
                         tid: WX_TEMPLATE_TEMP,
                         data: {
                             first: { value: '👤 ' + name, color: '#173177' },
-                            keyword1: { value: last.temperature.toFixed(1) + '°C（' + levelText[lv] + '）', color: '#FF4444' },
-                            keyword2: { value: remindText[lv] + '\n上次测量：' + ago(now, new Date(last.time)) + '\n提醒间隔：每' + TEMP_INTERVALS[lv] + '分钟', color: '#333333' },
-                            keyword3: { value: nowStr, color: '#999999' },
+                            keyword1: { value: name, color: '#333333' },
+                            keyword2: { value: last.temperature.toFixed(1) + '°C（' + levelText[lv] + '）', color: '#FF4444' },
+                            keyword3: { value: fmtTime(last.time), color: '#999999' },
+                            keyword4: { value: ago(now, new Date(last.time)), color: '#333333' },
+                            keyword5: { value: remindText[lv] + ' | 间隔每' + TEMP_INTERVALS[lv] + '分钟', color: '#FF6600' },
                             remark: { value: '请及时测量并记录体温', color: '#666666' }
                         }
                     });
@@ -315,15 +261,17 @@ async function main() {
                         if (!d.lastMedReminds[key]) {
                             d.lastMedReminds[key] = true;
                             changed = true;
+                            var hoursAgo = Math.floor((now - dose) / 3600000);
                             msgs.push({
                                 tid: WX_TEMPLATE_MED,
                                 data: {
                                     first: { value: '👤 ' + name, color: '#173177' },
-                                    keyword1: { value: r.medicineName, color: '#FF4444' },
-                                    keyword2: { value: r.dosage, color: '#333333' },
-                                    keyword3: { value: '每' + r.intervalHours + '小时一次', color: '#333333' },
-                                    keyword4: { value: '上次用药：' + fmtTime(r.time), color: '#999999' },
-                                    remark: { value: '请按时服药', color: '#666666' }
+                                    keyword1: { value: name, color: '#333333' },
+                                    keyword2: { value: r.medicineName, color: '#FF4444' },
+                                    keyword3: { value: '每' + r.intervalHours + '小时一次（' + r.dosage + '）', color: '#333333' },
+                                    keyword4: { value: fmtTime(r.time), color: '#999999' },
+                                    keyword5: { value: hoursAgo + '小时前', color: '#333333' },
+                                    remark: { value: '请按时服药，注意用药安全', color: '#666666' }
                                 }
                             });
                             console.log(name + '：用药提醒 - ' + r.medicineName);
