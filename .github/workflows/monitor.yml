@@ -1,6 +1,9 @@
 name: 健康监测定时提醒
 
 on:
+  push:
+    paths:
+      - 'monitor.js'
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
