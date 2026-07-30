@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const WX_APPID = process.env.WX_APPID;
 const WX_SECRET = process.env.WX_SECRET;
 const WX_OPENID = process.env.WX_OPENID;
+const WX_TEMPLATE_START = process.env.WX_TEMPLATE_START;
 const WX_TEMPLATE_TEMP = process.env.WX_TEMPLATE_TEMP;
 const WX_TEMPLATE_MED = process.env.WX_TEMPLATE_MED;
 const WX_TEMPLATE_RECOVERY = process.env.WX_TEMPLATE_RECOVERY;
@@ -68,7 +69,6 @@ async function getToken() {
         console.log('使用缓存token');
         return cached.token;
     }
-    
     console.log('请求新token...');
     var d = await new Promise(function(resolve) {
         https.get('https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=' + WX_APPID + '&secret=' + WX_SECRET, { timeout: 10000 }, function(res) {
@@ -79,7 +79,6 @@ async function getToken() {
             });
         }).on('error', function(e) { console.log('token请求失败:', e.message); resolve(null); });
     });
-    
     if (d && d.access_token) {
         console.log('token获取成功，保存缓存');
         await ossPut('/wx_token.json', { token: d.access_token, expires: Date.now() + 5400000 });
@@ -104,10 +103,10 @@ function sendWx(token, templateId, data) {
                     var r = JSON.parse(d);
                     console.log(r.errcode === 0 ? '✅发送成功' : '❌失败:' + r.errmsg);
                     resolve(r.errcode === 0);
-                } catch(e) { console.log('解析发送结果失败'); resolve(false); }
+                } catch(e) { console.log('解析失败'); resolve(false); }
             });
         });
-        req.on('error', function(e) { console.log('发送请求失败:', e.message); resolve(false); });
+        req.on('error', function(e) { console.log('发送失败:', e.message); resolve(false); });
         req.end(body);
     });
 }
@@ -143,11 +142,9 @@ async function main() {
     console.log('=== 健康监测 ===');
     
     var data = await ossGet('/baby_temp_data.json');
-    if (!data) { console.log('❌ 读取数据失败'); return; }
-    console.log('✅ 读取成功，成员数：' + Object.keys(data).length);
- if (data['杨辰汐']) data['杨辰汐'].lastTempRemind = '2026-07-29T00:00:00.000Z';
-    if (data['杨洋']) data['杨洋'].lastTempRemind = '2026-07-29T00:00:00.000Z';
-    
+    if (!data) { console.log('❌ 读取失败'); return; }
+    console.log('✅ 读取成功，成员：' + Object.keys(data).length);
+
     var now = new Date();
     var nowStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
     var msgs = [];
@@ -173,7 +170,7 @@ async function main() {
             return new Date(r.time) >= new Date(now - 3*86400000) && r.temperature >= FEVER_LINE;
         });
 
-        // ============ 启动监测 ============
+        // ===== 启动监测（用启动模板）=====
         if (d.monitorStatus === 'inactive' && recentFever && !d.feverNotified) {
             d.monitorStatus = 'active';
             d.lastFeverDate = now.toISOString().split('T')[0];
@@ -183,11 +180,11 @@ async function main() {
             var last = temps[temps.length-1];
             var lv = getLevel(last.temperature);
             msgs.push({
-                tid: WX_TEMPLATE_TEMP,
+                tid: WX_TEMPLATE_START,
                 data: {
-                    first: { value: '👤 监测对象：' + name, color: '#173177' },
+                    first: { value: '👤 ' + name, color: '#173177' },
                     keyword1: { value: last.temperature.toFixed(1) + '°C（' + levelText[lv] + '）', color: '#FF4444' },
-                    keyword2: { value: '🔔 检测到发热！监测已启动\n' + remindText[lv] + '\n测量时间：' + fmtTime(last.time) + '\n提醒间隔：每' + TEMP_INTERVALS[lv] + '分钟', color: '#333333' },
+                    keyword2: { value: '🔔 检测到发热！\n' + remindText[lv] + '\n测量时间：' + fmtTime(last.time) + '\n提醒间隔：每' + TEMP_INTERVALS[lv] + '分钟', color: '#333333' },
                     keyword3: { value: nowStr, color: '#999999' },
                     remark: { value: '洋gg软件工作室', color: '#666666' }
                 }
@@ -195,7 +192,7 @@ async function main() {
             console.log(name + '：启动监测');
         }
 
-        // ============ 康复判断 ============
+        // ===== 康复 =====
         if (d.monitorStatus === 'active' && !recentFever && d.lastFeverDate) {
             var days = Math.floor((now - new Date(d.lastFeverDate)) / 86400000);
             if (days >= RECOVERY_DAYS) {
@@ -208,18 +205,18 @@ async function main() {
                 msgs.push({
                     tid: WX_TEMPLATE_RECOVERY,
                     data: {
-                        first: { value: '👤 监测对象：' + name, color: '#173177' },
+                        first: { value: '👤 ' + name, color: '#173177' },
                         keyword1: { value: name, color: '#333333' },
-                        keyword2: { value: new Date(d.lastFeverDate).toLocaleDateString('zh-CN') + ' 至 ' + now.toLocaleDateString('zh-CN') + '（' + days + '天）', color: '#333333' },
+                        keyword2: { value: new Date(d.lastFeverDate).toLocaleDateString('zh-CN') + ' 至今（' + days + '天）', color: '#333333' },
                         keyword3: { value: '✅ 已连续' + days + '天体温正常，监测已自动关闭', color: '#27AE60' },
                         remark: { value: '如有不适请重新记录体温', color: '#666666' }
                     }
                 });
-                console.log(name + '：康复，监测停止');
+                console.log(name + '：康复');
             }
         }
 
-        // ============ 体温提醒 ============
+        // ===== 体温提醒（用体温提醒模板）=====
         if (d.monitorStatus === 'active') {
             activeCount++;
             var lr = d.lastTempRemind ? new Date(d.lastTempRemind) : null;
@@ -233,18 +230,18 @@ async function main() {
                     msgs.push({
                         tid: WX_TEMPLATE_TEMP,
                         data: {
-                            first: { value: '👤 监测对象：' + name, color: '#173177' },
+                            first: { value: '👤 ' + name, color: '#173177' },
                             keyword1: { value: last.temperature.toFixed(1) + '°C（' + levelText[lv] + '）', color: '#FF4444' },
                             keyword2: { value: remindText[lv] + '\n上次测量：' + ago(now, new Date(last.time)) + '\n提醒间隔：每' + TEMP_INTERVALS[lv] + '分钟', color: '#333333' },
                             keyword3: { value: nowStr, color: '#999999' },
                             remark: { value: '请及时测量并记录体温', color: '#666666' }
                         }
                     });
-                    console.log(name + '：发送体温提醒');
+                    console.log(name + '：体温提醒');
                 }
             }
 
-            // ============ 用药提醒 ============
+            // ===== 用药提醒 =====
             for (var j = 0; j < meds.length; j++) {
                 var r = meds[j];
                 if (r.intervalHours > 0) {
@@ -260,12 +257,12 @@ async function main() {
                             msgs.push({
                                 tid: WX_TEMPLATE_MED,
                                 data: {
-                                    first: { value: '👤 用药对象：' + name, color: '#173177' },
+                                    first: { value: '👤 ' + name, color: '#173177' },
                                     keyword1: { value: r.medicineName, color: '#FF4444' },
                                     keyword2: { value: r.dosage, color: '#333333' },
                                     keyword3: { value: '每' + r.intervalHours + '小时一次', color: '#333333' },
                                     keyword4: { value: '上次用药：' + fmtTime(r.time), color: '#999999' },
-                                    remark: { value: '请按时服药，注意用药安全', color: '#666666' }
+                                    remark: { value: '请按时服药', color: '#666666' }
                                 }
                             });
                             console.log(name + '：用药提醒 - ' + r.medicineName);
@@ -277,14 +274,13 @@ async function main() {
     }
 
     if (changed) {
-        console.log('保存数据到OSS...');
+        console.log('保存OSS...');
         await ossPut('/baby_temp_data.json', data);
         console.log('保存完成');
     }
 
     if (msgs.length > 0) {
-        console.log('准备发送 ' + msgs.length + ' 条消息');
-        console.log('获取token...');
+        console.log('发送 ' + msgs.length + ' 条消息');
         var token = await getToken();
         console.log('token: ' + (token ? '成功' : '失败'));
         if (token) {
@@ -295,7 +291,7 @@ async function main() {
             }
         }
     } else {
-        console.log('无消息，活跃监测：' + activeCount);
+        console.log('无消息，活跃：' + activeCount);
     }
 
     console.log('=== 完成 ===');
