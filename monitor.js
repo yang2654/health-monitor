@@ -40,12 +40,26 @@ function ossPut(path, data) {
         var body = JSON.stringify(data);
         var s = 'PUT\n\napplication/json\n' + date + '\n/' + OSS_BUCKET + path;
         var sig = crypto.createHmac('sha1', OSS_SECRET).update(s).digest('base64');
+        var done = false;
         var req = https.request({
-            hostname: OSS_HOST, path: path, method: 'PUT', timeout: 10000,
+            hostname: OSS_HOST, path: path, method: 'PUT', timeout: 8000,
             headers: { Date: date, Authorization: 'OSS ' + OSS_KEY + ':' + sig, 'Content-Type': 'application/json' }
-        }, function(res) { res.on('end', function() { console.log('OSS保存完成'); resolve(); }); });
-        req.on('error', function(e) { console.log('OSS保存失败:', e.message); resolve(); });
+        }, function(res) { 
+            res.on('end', function() { 
+                if (!done) { done = true; console.log('OSS保存完成'); resolve(); }
+            }); 
+        });
+        req.on('error', function(e) { 
+            if (!done) { done = true; console.log('OSS保存失败(继续):', e.message); resolve(); }
+        });
+        req.on('timeout', function() { 
+            if (!done) { done = true; console.log('OSS保存超时(继续)'); req.destroy(); resolve(); }
+        });
         req.end(body);
+        // 最多等8秒
+        setTimeout(function() {
+            if (!done) { done = true; console.log('OSS保存强制结束'); req.destroy(); resolve(); }
+        }, 8000);
     });
 }
 
