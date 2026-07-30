@@ -43,16 +43,20 @@ function ossPut(path, data) {
         var req = https.request({
             hostname: OSS_HOST, path: path, method: 'PUT', timeout: 10000,
             headers: { Date: date, Authorization: 'OSS ' + OSS_KEY + ':' + sig, 'Content-Type': 'application/json' }
-        }, function(res) { res.on('end', function() { resolve(); }); });
-        req.on('error', function() { resolve(); });
+        }, function(res) { res.on('end', function() { console.log('OSS保存完成'); resolve(); }); });
+        req.on('error', function(e) { console.log('OSS保存失败:', e.message); resolve(); });
         req.end(body);
     });
 }
 
 async function getToken() {
     var cached = await ossGet('/wx_token.json');
-    if (cached && cached.token && cached.expires > Date.now() + 300000) return cached.token;
+    if (cached && cached.token && cached.expires > Date.now() + 300000) {
+        console.log('使用缓存token');
+        return cached.token;
+    }
     
+    console.log('请求新token...');
     var d = await new Promise(function(resolve) {
         https.get('https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=' + WX_APPID + '&secret=' + WX_SECRET, { timeout: 10000 }, function(res) {
             var b = '';
@@ -60,13 +64,15 @@ async function getToken() {
             res.on('end', function() {
                 try { resolve(JSON.parse(b)); } catch(e) { resolve(null); }
             });
-        }).on('error', function() { resolve(null); });
+        }).on('error', function(e) { console.log('token请求失败:', e.message); resolve(null); });
     });
     
     if (d && d.access_token) {
+        console.log('token获取成功，保存缓存');
         await ossPut('/wx_token.json', { token: d.access_token, expires: Date.now() + 5400000 });
         return d.access_token;
     }
+    console.log('token获取失败:', JSON.stringify(d));
     return null;
 }
 
@@ -85,10 +91,10 @@ function sendWx(token, templateId, data) {
                     var r = JSON.parse(d);
                     console.log(r.errcode === 0 ? '✅发送成功' : '❌失败:' + r.errmsg);
                     resolve(r.errcode === 0);
-                } catch(e) { resolve(false); }
+                } catch(e) { console.log('解析发送结果失败'); resolve(false); }
             });
         });
-        req.on('error', function() { resolve(false); });
+        req.on('error', function(e) { console.log('发送请求失败:', e.message); resolve(false); });
         req.end(body);
     });
 }
@@ -250,20 +256,26 @@ async function main() {
         }
     }
 
-    if (changed) await ossPut('/baby_temp_data.json', data);
+    if (changed) {
+        console.log('保存数据到OSS...');
+        await ossPut('/baby_temp_data.json', data);
+        console.log('保存完成');
+    }
 
     if (msgs.length > 0) {
-        console.log('发送 ' + msgs.length + ' 条消息');
+        console.log('准备发送 ' + msgs.length + ' 条消息');
+        console.log('获取token...');
         var token = await getToken();
+        console.log('token: ' + (token ? '成功' : '失败'));
         if (token) {
             for (var k = 0; k < msgs.length; k++) {
+                console.log('发送第' + (k+1) + '条...');
                 await sendWx(token, msgs[k].tid, msgs[k].data);
+                console.log('第' + (k+1) + '条完成');
             }
-        } else {
-            console.log('❌ token失败');
         }
     } else {
-        console.log('无需发送，活跃监测：' + activeCount);
+        console.log('无消息，活跃监测：' + activeCount);
     }
 
     console.log('=== 完成 ===');
