@@ -1,0 +1,27 @@
+name: 健康监测定时提醒
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+      
+      - name: 运行监测脚本
+        env:
+          WX_APPID: ${{ secrets.WX_APPID }}
+          WX_SECRET: ${{ secrets.WX_SECRET }}
+          WX_OPENID: ${{ secrets.WX_OPENID }}
+          WX_TEMPLATE_TEMP: ${{ secrets.WX_TEMPLATE_TEMP }}
+          WX_TEMPLATE_MED: ${{ secrets.WX_TEMPLATE_MED }}
+          WX_TEMPLATE_RECOVERY: ${{ secrets.WX_TEMPLATE_RECOVERY }}
+          OSS_KEY: ${{ secrets.OSS_KEY }}
+          OSS_SECRET: ${{ secrets.OSS_SECRET }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+          OSS_HOST: ${{ secrets.OSS_HOST }}
+        run: node monitor.js
