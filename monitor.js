@@ -253,18 +253,22 @@ async function main() {
 
     if (changed) await ossPut('/baby_temp_data.json', data);
 
-    if (msgs.length > 0) {
+        if (msgs.length > 0) {
         console.log('准备发送 ' + msgs.length + ' 条微信消息');
+        console.log('开始获取token...');
         var token = await getToken();
+        console.log('token获取结果：' + (token ? '成功(' + token.substring(0,10) + '...)' : '失败'));
         if (token) {
             for (var k = 0; k < msgs.length; k++) {
+                console.log('发送第' + (k+1) + '条消息...');
                 await sendWx(token, msgs[k].tid, msgs[k].data);
             }
         } else {
             console.log('❌ 获取token失败');
         }
     } else {
-        console.log('无需发送消息，活跃监测：' + activeCount);
+        console.log('无消息需要发送，活跃监测：' + activeCount);
+    
     }
 
     console.log('=== 完成 ===');
